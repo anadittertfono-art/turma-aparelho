@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Cofre · Jogos da Turma</title>
+<!--
+  Cofre dos Jogos da Turma (Ana Letícia Dittert · Fonoaudióloga · CRFa 2-9308-3).
+  Página invisível que guarda dados do jogo no próprio aparelho (por exemplo, a rotina da Minha Rotina).
+  Os jogos ficam no Google Sites, que esquece tudo a cada visita; esta página fica sempre no mesmo
+  endereço, então o que ela guarda no navegador permanece.
+
+  Nada vai para a planilha nem para a internet: os dados ficam só neste navegador, neste aparelho.
+  O jogo conversa com ela por mensagens (postMessage):
+    { cofre: 1, id, tipo: 'ler',    chave }          → { cofre: 1, id, valor }
+    { cofre: 1, id, tipo: 'gravar', chave, valor }   → { cofre: 1, id, ok: true }   (valor null apaga)
+  Ao abrir, avisa o jogo com { cofre: 1, tipo: 'pronto' }. Em caso de erro, responde { cofre: 1, id, erro }.
+-->
+</head>
+<body>
+<script>
+(function () {
+  'use strict';
+  var PREFIXO = 'cofre:', CHAVE = /^[a-z0-9-]{1,60}$/, LIMITE = 1500000;
+  if (window.parent === window) return;   // só funciona dentro de um jogo
+  var jogo = window.parent;
+
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (e.source !== jogo || !d || d.cofre !== 1 || !d.id) return;
+    var r = { cofre: 1, id: d.id };
+    try {
+      if (!CHAVE.test(String(d.chave))) throw new Error('chave');
+      if (d.tipo === 'ler') r.valor = localStorage.getItem(PREFIXO + d.chave);
+      else if (d.tipo === 'gravar') {
+        if (d.valor === null || d.valor === undefined) localStorage.removeItem(PREFIXO + d.chave);
+        else {
+          var v = String(d.valor);
+          if (v.length > LIMITE) throw new Error('grande');
+          localStorage.setItem(PREFIXO + d.chave, v);
+        }
+        r.ok = true;
+      } else throw new Error('tipo');
+    } catch (err) {
+      r.erro = String((err && (err.name === 'Error' ? err.message : err.name)) || err);
+    }
+    jogo.postMessage(r, '*');
+  });
+  jogo.postMessage({ cofre: 1, tipo: 'pronto' }, '*');
+})();
+</script>
+</body>
+</html>

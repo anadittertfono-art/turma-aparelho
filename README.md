@@ -10,6 +10,8 @@ Os jogos ficam no Google Sites, que esquece tudo o que o jogo guarda a cada visi
 
 Guarda no aparelho só a data da última visita a cada jogo e a marca da Ana. Não envia nome, conta, IP nem identificador do aparelho.
 
+`cofre.html` (invisível): guarda dados do jogo no próprio aparelho, como a rotina da Minha Rotina. Nada vai para a planilha nem para a internet. O jogo conversa com ela por mensagens (`postMessage`), e ela só responde à página que a abriu.
+
 Antes ficava numa página do Apps Script. Ela dava erro ("Não foi possível abrir o arquivo") em navegadores com mais de uma conta do Google conectada.
 
 O código dos jogos fica num repositório privado separado (`jogos-da-turma`).
