@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Aparelho · Jogos da Turma</title>
+<!--
+  Página de apoio dos Jogos da Turma (Ana Letícia Dittert · Fonoaudióloga · CRFa 2-9308-3).
+  Fica num endereço fixo, então o que ela guarda no aparelho não se perde entre visitas ao site.
+
+  ?j=<jogo>   (invisível) Conta o aparelho na planilha, no máximo uma vez por dia e por jogo,
+              e avisa o jogo se este aparelho foi marcado como da Ana (nesse caso, nada é contado).
+              Guarda no aparelho só a data da última visita a cada jogo.
+  ?modo=ana   (visível) Marca ou desmarca este aparelho como da Ana.
+
+  Nada aqui identifica a pessoa: não há nome, conta, IP nem identificador do aparelho.
+-->
+<style>
+  :root { --marinho: #0C3549; --turquesa: #3496A1; --lilas: #EEE4FA; --texto: #4B6877; }
+  body { margin: 0; padding: 16px 18px; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--marinho); background: #fff; text-align: center; }
+  h1 { font-size: 17px; margin: 0 0 6px; }
+  p { font-size: 14px; line-height: 1.4; margin: 0 0 12px; color: var(--texto); }
+  #estado { font-weight: 700; color: #217A86; min-height: 1.4em; }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 12px; padding: 11px 16px; margin: 4px; cursor: pointer; }
+  #sim { background: var(--turquesa); color: #fff; }
+  #nao { background: var(--lilas); color: var(--marinho); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main id="marcador" hidden>
+  <h1>Este aparelho é da Ana?</h1>
+  <p>Marcado, ele deixa de entrar na contagem dos jogos (neste navegador).</p>
+  <p id="estado" aria-live="polite"></p>
+  <button id="sim" type="button">Sim, não contar</button><button id="nao" type="button">Voltar a contar</button>
+</main>
+<script>
+(function () {
+  'use strict';
+  var PLANILHA = 'https://script.google.com/macros/s/AKfycbwgaNFXTD2sV1f0MKgwLOb2c2qlj77bsG8cn133QS99dIe9-nUJv8aOaJ_yVyvkiJkYYA/exec';
+  var MARCA = 'aparelho-da-ana', NOME_VALIDO = /^[a-z0-9-]{1,40}$/;
+  var params = new URLSearchParams(location.search);
+
+  function ler(chave) { try { return localStorage.getItem(chave); } catch (e) { return undefined; } }
+  function gravar(chave, valor) {
+    try {
+      if (valor === null) localStorage.removeItem(chave); else localStorage.setItem(chave, valor);
+      return localStorage.getItem(chave) === valor;
+    } catch (e) { return false; }
+  }
+  function daAna() { return ler(MARCA) === '1'; }
+
+  /* Marcador visível */
+  if (params.get('modo') === 'ana') {
+    var estado = document.getElementById('estado');
+    var mostrar = function () {
+      if (ler(MARCA) === undefined) { estado.textContent = 'Este navegador não deixa guardar a marca.'; return; }
+      estado.textContent = daAna() ? 'Marcado: este aparelho não conta.' : 'Não marcado: este aparelho conta.';
+    };
+    document.getElementById('sim').onclick = function () { gravar(MARCA, '1'); mostrar(); };
+    document.getElementById('nao').onclick = function () { gravar(MARCA, null); mostrar(); };
+    document.getElementById('marcador').hidden = false;
+    mostrar();
+    return;
+  }
+
+  /* Contagem invisível de aparelhos */
+  var jogo = params.get('j') || '';
+  if (!NOME_VALIDO.test(jogo)) return;
+  var ana = daAna();
+  if (window.parent !== window) window.parent.postMessage({ contador: 1, daAna: ana }, '*');
+  if (ana) return;
+
+  var d = new Date(), hoje = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  var chave = 'ultima-visita-' + jogo, ultima = ler(chave);
+  if (ultima === undefined || ultima === hoje) return;   // sem armazenamento, não dá para saber se é novo
+  if (!gravar(chave, hoje)) return;
+
+  function enviar(evento) {
+    var corpo = JSON.stringify({ j: jogo, e: evento });
+    try {
+      if (navigator.sendBeacon && navigator.sendBeacon(PLANILHA, corpo)) return;
+      fetch(PLANILHA, { method: 'POST', mode: 'no-cors', keepalive: true, body: corpo }).catch(function () {});
+    } catch (e) {}
+  }
+  enviar('aparelhos_no_dia');
+  if (!ultima) enviar('aparelhos_diferentes');
+})();
+</script>
+</body>
+</html>
